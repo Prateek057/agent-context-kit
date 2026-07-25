@@ -26,6 +26,28 @@ arguments:
 
 Execute the given task following repo coding patterns. Optimize for low token usage.
 
+## Model Routing
+
+| Checkpoint | Task | Model |
+|-----------|------|-------|
+| Plan | Identify patterns, list files | 🟢 Haiku |
+| Implementation | Generate code following conventions | 🟡 Sonnet (simple) / 🔴 Opus (complex) |
+| Wiring | DI registration, config updates | 🟡 Sonnet |
+| Verify | Run build, check output | 🟢 Haiku |
+
+Inform user at each checkpoint: `[checkpoint N] {name} ({model tier})`
+
+## Budget Awareness
+
+| Budget remaining | Strategy |
+|-----------------|----------|
+| Plenty | Full checkpoints with human gates |
+| Moderate | Collapse checkpoints 2+3, fewer confirmations |
+| Low (<15k) | Single-pass: plan + implement in one shot, skip verify |
+| Critical (<5k) | Output plan only: "Budget low. Here's the plan — execute manually or re-run with more budget." |
+
+Never crash silently. Always inform: `"Budget running low. Compressing remaining work."`
+
 ## Behavior Rules
 
 1. **Load patterns**: Read `.claude/skills/patterns.md` — only sections relevant to task.
