@@ -1,0 +1,23 @@
+{
+  "name": "codeprint",
+  "description": "Analyze any repository's coding patterns and generate a token-efficient patterns skill for Claude Code",
+  "version": "1.0.0",
+  "owner": {
+    "name": "prateekbagrecha"
+  },
+  "plugins": [
+    {
+      "name": "codeprint",
+      "displayName": "Codeprint",
+      "description": "Repository pattern extractor — detects topology, languages, frameworks, infrastructure, and conventions. Generates .claude/skills/patterns.md and .claude/skills/use-patterns.md for any codebase.",
+      "version": "1.0.0",
+      "source": {
+        "source": "github",
+        "repo": "prateekbagrecha/claude-toolkit",
+        "ref": "main",
+        "path": "codeprint"
+      },
+      "license": "MIT"
+    }
+  ]
+}
