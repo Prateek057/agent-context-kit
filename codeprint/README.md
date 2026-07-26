@@ -87,15 +87,47 @@ Routes each phase to the cheapest capable model automatically:
 
 **Estimated cost:** ~60-70% cheaper than running everything on Opus.
 
-## What It Does
+## What It Generates
+
+Codeprint produces **two separate skills** in your repo — intentionally split for token efficiency:
+
+### `/patterns` — The Reference (data)
+```
+.claude/skills/patterns.md (~300 lines)
+```
+- What: conventions, templates, anti-patterns, scaffold table
+- When to use: checking a convention, reviewing code, onboarding
+- Token cost: loaded once when invoked, 0 when idle
+- Example: "What's our naming convention for validators?" → `/patterns`
+
+### `/use-patterns` — The Executor (behavior)
+```
+.claude/skills/use-patterns.md (~100 lines)
+```
+- What: task execution with checkpoints, human gates, model routing, budget awareness
+- When to use: building something new that should follow conventions
+- Token cost: loads patterns internally + adds execution logic
+- Example: "Add a DeleteModel command handler" → `/use-patterns Add a DeleteModel command handler`
+
+### Why Two Skills?
+
+| | Single merged skill | Split (current) |
+|-|--------------------:|----------------:|
+| Check a convention | Loads ~400 lines | Loads ~300 lines (`/patterns` only) |
+| Execute a task | Loads ~400 lines | Loads ~400 lines (both) |
+| 10 convention checks in a session | 4,000 lines loaded total | 3,000 lines loaded total |
+
+Checking conventions is more frequent than executing tasks. Split saves ~25% tokens on the common case. The executor loads patterns internally when needed — you never need to invoke both manually.
+
+## What Codeprint Does
 
 1. Detects topology (monorepo / monolith / microservice)
 2. Identifies languages and frameworks
 3. Scans infrastructure & DevOps patterns
 4. Samples representative files per subtype
 5. Extracts conventions, cross-cutting patterns, anti-patterns
-6. Generates compressed `patterns.md` skill (~300 lines max)
-7. Generates `use-patterns.md` task executor with checkpoints
+6. Generates `patterns.md` — conventions reference (~300 lines max)
+7. Generates `use-patterns.md` — task executor with checkpoints
 8. Recommends additional tooling (asks before installing)
 
 ## Project Structure

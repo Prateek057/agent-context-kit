@@ -38,6 +38,26 @@ Script orchestrates subagents per-phase with model routing
 Results returned → Claude writes .claude/skills/patterns.md
 ```
 
+## Generated Skills: `/patterns` vs `/use-patterns`
+
+Codeprint generates two skills — split intentionally for token efficiency:
+
+| | `/patterns` | `/use-patterns` |
+|-|-------------|-----------------|
+| **Role** | Reference (data) | Executor (behavior) |
+| **Size** | ~300 lines | ~100 lines (loads patterns internally) |
+| **Use when** | Checking conventions, reviewing code | Building something new |
+| **Example** | "What's our handler naming?" | `/use-patterns Add a CreateOrder handler` |
+| **Loads** | Only itself | Itself + relevant sections of patterns |
+
+**Why not one skill?** Checking conventions is more frequent than executing tasks. Splitting avoids loading execution logic (checkpoints, gates, model routing) when you just want to look something up. Saves ~25% tokens on the common case.
+
+**Rule of thumb:**
+- Question about conventions → `/patterns`
+- Task that should follow conventions → `/use-patterns <task>`
+
+---
+
 ## Detection Capabilities
 
 ### Topology
