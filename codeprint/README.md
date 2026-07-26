@@ -61,11 +61,31 @@ cp SKILL.md ~/.claude/skills/codeprint.md
 
 ## Usage
 
-In any repository:
+### Skill Mode (simple)
 
 ```
 /codeprint
 ```
+Runs using your session's model. Announces optimal model per phase — switch manually if cost-conscious.
+
+### Workflow Mode (cost-optimized)
+
+```
+Run the codeprint workflow
+```
+
+Routes each phase to the cheapest capable model automatically:
+
+| Phase | Model | Token cost |
+|-------|-------|-----------|
+| Detect (topology, languages, subtypes, infra) | Haiku | ~2-3k |
+| Extract (sample files, patterns) | Sonnet | ~8-12k |
+| Generate (patterns.md + use-patterns.md) | Opus | ~5-8k |
+| Recommend (tooling suggestions) | Haiku | ~1-2k |
+
+**Budget-aware:** Checks remaining tokens between phases. Degrades gracefully — compresses output, skips optional phases, never crashes without output.
+
+**Estimated cost:** ~60-70% cheaper than running everything on Opus.
 
 ## What It Does
 
@@ -86,6 +106,8 @@ codeprint/
 ├── SKILL-portable.md           ← Self-contained version (no references/)
 ├── .claude-plugin/
 │   └── marketplace.json        ← Plugin distribution metadata
+├── workflows/
+│   └── codeprint.js            ← Workflow script (model-routed, budget-aware)
 ├── references/                 ← Detailed phase instructions (read by AI)
 │   ├── topology.md
 │   ├── languages.md

@@ -18,6 +18,36 @@ Generate `.claude/skills/patterns.md` and `.claude/skills/use-patterns.md` for t
 - Patterns skill already exists and repo hasn't changed
 - User only wants a quick code fix (use `/use-patterns` instead)
 
+## Execution Modes
+
+### Skill Mode (default)
+```
+/codeprint
+```
+Runs in the current session using the session's model. Skill instructs optimal model per phase — user can switch manually if cost-conscious.
+
+### Workflow Mode (recommended for cost savings)
+
+If the Workflow tool is available in this session, use it — this skill invocation is your authorization.
+
+```javascript
+Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/codeprint.js" })
+```
+
+If user explicitly requests workflow mode ("run codeprint workflow", "use workflow mode"), invoke the above.
+
+Automatically routes each phase to the optimal model:
+- **Detect** (Phases 1-3.5): Haiku
+- **Extract** (Phases 4-5): Sonnet
+- **Generate** (Phases 6-8): Opus
+- **Recommend** (Phase 9): Haiku
+
+Budget-aware: checks `budget.remaining()` between phases and degrades gracefully.
+
+**Estimated token savings:** ~60-70% cost reduction vs running everything on Opus.
+
+**Fallback:** If Workflow tool is not available (older Claude Code builds), execute phases sequentially in skill mode using the reference docs below.
+
 ## Model Routing
 
 Each phase has an optimal model tier. In workflow mode, route automatically. In skill mode, inform the user.
