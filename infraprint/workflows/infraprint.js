@@ -138,7 +138,7 @@ Rules:
 - Infer anti-patterns from consistency
 - Minimal code templates (resource structure skeleton only)
 
-Write COMPLETE file content. Valid markdown ready to save.`,
+IMPORTANT: Use the Write tool to save the file at .claude/skills/infra-patterns/SKILL.md (create dirs if needed). Do NOT just return the content.`,
   { label: 'generate:infra-patterns', phase: 'Generate', model: 'opus', effort: 'medium' }
 )
 
@@ -162,7 +162,7 @@ Adapt to this repo:
 - Env strategy: ${detection.envStrategy || 'unknown'}
 - Plan/apply command: infer from IaC tool (terraform plan / cdk diff / pulumi preview)
 
-Write COMPLETE file content with YAML frontmatter. Ready to save.`,
+IMPORTANT: Use the Write tool to save the file at .claude/skills/use-infra-patterns/SKILL.md (create dirs if needed). Do NOT just return the content.`,
     { label: 'generate:use-infra-patterns', phase: 'Generate', model: 'sonnet', effort: 'medium' }
   )
 }

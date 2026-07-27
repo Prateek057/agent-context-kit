@@ -1,55 +1,69 @@
 #!/usr/bin/env bash
-# Install/uninstall codeprint skill via symlink to ~/.claude/skills/
+# Install/uninstall/update codeprint skill
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SKILL_NAME="codeprint"
 SKILLS_DIR="$HOME/.claude/skills"
+TARGET="$SKILLS_DIR/$SKILL_NAME.md"
+SOURCE="$PROJECT_DIR/SKILL-portable.md"
 
 usage() {
-  echo "Usage: $0 [install|uninstall|status]"
+  echo "Usage: $0 [install|update|uninstall|status]"
   echo ""
-  echo "  install    Symlink codeprint directory to ~/.claude/skills/codeprint"
-  echo "  uninstall  Remove the symlink"
+  echo "  install    Copy portable skill to ~/.claude/skills/codeprint.md"
+  echo "  update     Overwrite with latest version"
+  echo "  uninstall  Remove the skill file"
   echo "  status     Check if installed"
   exit 1
 }
 
 install() {
   mkdir -p "$SKILLS_DIR"
-  if [ -L "$SKILLS_DIR/$SKILL_NAME" ]; then
-    echo "Already installed: $SKILLS_DIR/$SKILL_NAME"
+  if [ -f "$TARGET" ]; then
+    echo "Already installed: $TARGET"
+    echo "Run '$0 update' to overwrite with latest version."
     return 0
   fi
-  if [ -d "$SKILLS_DIR/$SKILL_NAME" ]; then
-    echo "Error: $SKILLS_DIR/$SKILL_NAME exists but is not a symlink. Remove it first."
+  # Remove legacy symlinks if present
+  [ -L "$SKILLS_DIR/$SKILL_NAME" ] && rm "$SKILLS_DIR/$SKILL_NAME"
+  [ -L "$TARGET" ] && rm "$TARGET"
+  cp "$SOURCE" "$TARGET"
+  echo "Installed: $TARGET"
+}
+
+update() {
+  mkdir -p "$SKILLS_DIR"
+  if [ ! -f "$TARGET" ] && [ ! -L "$TARGET" ]; then
+    echo "Not installed. Run '$0 install' first."
     return 1
   fi
-  # Remove legacy file symlink if present
-  [ -L "$SKILLS_DIR/$SKILL_NAME.md" ] && rm "$SKILLS_DIR/$SKILL_NAME.md"
-  ln -s "$PROJECT_DIR" "$SKILLS_DIR/$SKILL_NAME"
-  echo "Installed: $SKILLS_DIR/$SKILL_NAME -> $PROJECT_DIR"
+  # Remove legacy symlink if present
+  [ -L "$TARGET" ] && rm "$TARGET"
+  [ -L "$SKILLS_DIR/$SKILL_NAME" ] && rm "$SKILLS_DIR/$SKILL_NAME"
+  cp "$SOURCE" "$TARGET"
+  echo "Updated: $TARGET"
 }
 
 uninstall() {
-  if [ -L "$SKILLS_DIR/$SKILL_NAME" ]; then
+  if [ -f "$TARGET" ] || [ -L "$TARGET" ]; then
+    rm "$TARGET"
+    echo "Uninstalled: removed $TARGET"
+  elif [ -L "$SKILLS_DIR/$SKILL_NAME" ]; then
     rm "$SKILLS_DIR/$SKILL_NAME"
-    echo "Uninstalled: removed $SKILLS_DIR/$SKILL_NAME"
-  elif [ -L "$SKILLS_DIR/$SKILL_NAME.md" ]; then
-    rm "$SKILLS_DIR/$SKILL_NAME.md"
-    echo "Uninstalled: removed legacy $SKILLS_DIR/$SKILL_NAME.md"
+    echo "Uninstalled: removed legacy $SKILLS_DIR/$SKILL_NAME"
   else
     echo "Not installed."
   fi
 }
 
 status() {
-  if [ -L "$SKILLS_DIR/$SKILL_NAME" ]; then
-    echo "Installed: $SKILLS_DIR/$SKILL_NAME -> $(readlink "$SKILLS_DIR/$SKILL_NAME")"
-  elif [ -L "$SKILLS_DIR/$SKILL_NAME.md" ]; then
-    echo "Installed (legacy file symlink): $SKILLS_DIR/$SKILL_NAME.md -> $(readlink "$SKILLS_DIR/$SKILL_NAME.md")"
-    echo "Run 'install' again to upgrade to directory symlink."
+  if [ -f "$TARGET" ]; then
+    echo "Installed: $TARGET (copy)"
+  elif [ -L "$SKILLS_DIR/$SKILL_NAME" ]; then
+    echo "Installed (legacy symlink): $SKILLS_DIR/$SKILL_NAME -> $(readlink "$SKILLS_DIR/$SKILL_NAME")"
+    echo "Run '$0 update' to switch to copy-based install."
   else
     echo "Not installed."
   fi
@@ -57,6 +71,7 @@ status() {
 
 case "${1:-}" in
   install)   install ;;
+  update)    update ;;
   uninstall) uninstall ;;
   status)    status ;;
   *)         usage ;;

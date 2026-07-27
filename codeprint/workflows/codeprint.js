@@ -137,7 +137,7 @@ const generateInput = JSON.stringify({
 })
 
 const patternsSkill = await agent(
-  `Generate a .claude/skills/patterns.md file for this repository.
+  `Generate and WRITE a .claude/skills/patterns.md file in the current repository.
 
 Use this data: ${generateInput}
 
@@ -153,14 +153,14 @@ Follow these rules strictly:
 - Infer cross-cutting conventions (DI, config, logging) from extraction data — brief "Conventions" section
 - Infer anti-patterns from consistency (if pattern A always used over common alternative B → "Don't use B"). Max 7 items.
 
-Write the COMPLETE file content. It must be valid markdown ready to save.`,
+IMPORTANT: Use the Write tool to save the file at .claude/skills/patterns/SKILL.md (create dirs if needed). Do NOT just return the content.`,
   { label: 'generate:patterns', phase: 'Generate', model: 'opus', effort: 'medium' }
 )
 
 let usePatternsSkill = null
 if (!budget.total || budget.remaining() > 15000) {
   usePatternsSkill = await agent(
-    `Generate a .claude/skills/use-patterns.md file for this repository.
+    `Generate and WRITE a .claude/skills/use-patterns.md file in the current repository.
 
 This is a task executor skill that applies the repo's coding patterns with:
 - Terse communication (fragments OK, no filler)
@@ -177,8 +177,7 @@ Adapt to this repo specifically:
 - Shared libs path: infer from detection data
 - Note: infra patterns handled separately by /infraprint
 
-
-Write the COMPLETE file content with YAML frontmatter. Ready to save.`,
+IMPORTANT: Use the Write tool to save the file at .claude/skills/use-patterns/SKILL.md (create dirs if needed). Do NOT just return the content.`,
     { label: 'generate:use-patterns', phase: 'Generate', model: 'sonnet', effort: 'medium' }
   )
 }

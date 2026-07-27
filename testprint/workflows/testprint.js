@@ -127,7 +127,7 @@ log('Generating test-patterns.md')
 const generateInput = JSON.stringify({ detection, extractions: validExtractions })
 
 const testPatternsSkill = await agent(
-  `Generate a .claude/skills/test-patterns.md file for this repository.
+  `Generate and WRITE a .claude/skills/test-patterns.md file in the current repository.
 
 Use this data: ${generateInput}
 
@@ -139,7 +139,7 @@ Rules:
 - Infer anti-patterns from consistency
 - Minimal code templates (test structure skeleton only)
 
-Write COMPLETE file content. Valid markdown ready to save.`,
+IMPORTANT: Use the Write tool to save the file at .claude/skills/test-patterns/SKILL.md (create dirs if needed). Do NOT just return the content.`,
   { label: 'generate:test-patterns', phase: 'Generate', model: 'opus', effort: 'medium' }
 )
 
@@ -162,7 +162,7 @@ Adapt to this repo:
 - Test runner command: infer from framework
 - Shared utilities: ${detection.sharedUtilities?.map(u => u.path).join(', ') || 'none'}
 
-Write COMPLETE file content with YAML frontmatter. Ready to save.`,
+IMPORTANT: Use the Write tool to save the file at .claude/skills/use-test-patterns/SKILL.md (create dirs if needed). Do NOT just return the content.`,
     { label: 'generate:use-test-patterns', phase: 'Generate', model: 'sonnet', effort: 'medium' }
   )
 }
