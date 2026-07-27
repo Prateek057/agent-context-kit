@@ -5,7 +5,7 @@ description: Analyze repository test patterns and generate a token-efficient tes
 
 # Testprint — Test Pattern Extractor (Portable)
 
-Generate `.claude/skills/test-patterns.md` and `.claude/skills/use-test-patterns.md` for the current repository.
+Generate `.claude/skills/test-patterns/SKILL.md` and `.claude/skills/use-test-patterns/SKILL.md` for the current repository.
 
 **Scope:** Test code only — unit tests, integration tests, e2e tests, fixtures, test utilities, mocking patterns.
 
@@ -42,7 +42,7 @@ Also detect shared test utilities:
 
 ### Phase 3: Generate test-patterns.md
 
-Create `.claude/skills/test-patterns.md` with:
+Write to `.claude/skills/test-patterns/SKILL.md` (create dirs if needed) with:
 - Overview (frameworks, test types found, coverage approach)
 - Per test type: naming + structure + mocking + assertions + canonical file
 - Shared utilities (builders, fixtures, base classes — paths only)
@@ -51,9 +51,9 @@ Create `.claude/skills/test-patterns.md` with:
 
 Max 200 lines. No prose — bullets + code snippets only.
 
-### Phase 4: Generate use-test-patterns.md
+### Phase 4: Generate use-test-patterns/SKILL.md
 
-Create `.claude/skills/use-test-patterns.md` — test task executor with:
+Write to `.claude/skills/use-test-patterns/SKILL.md` (create dirs if needed) — test task executor with:
 - Terse communication
 - 3 checkpoints (Plan → Write Tests → Verify)
 - Complexity tiers per checkpoint

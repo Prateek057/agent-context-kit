@@ -5,7 +5,7 @@ description: Analyze repository infrastructure patterns (IaC, Docker, CI/CD, dep
 
 # Infraprint — Infrastructure Pattern Extractor (Portable)
 
-Generate `.claude/skills/infra-patterns.md` and `.claude/skills/use-infra-patterns.md` for the current repository.
+Generate `.claude/skills/infra-patterns/SKILL.md` and `.claude/skills/use-infra-patterns/SKILL.md` for the current repository.
 
 **Scope:** Infrastructure only — IaC (Terraform/CDK/Pulumi), Docker, CI/CD pipelines, deployment configs, environment strategy. NOT application code, NOT tests.
 
@@ -36,9 +36,9 @@ Per infra type found (max 5 types), read FIRST 60 lines of 2 sample files. Extra
 
 Types to check: IaC modules, Docker, CI/CD workflows, deployment configs, environment configs.
 
-### Phase 3: Generate infra-patterns.md
+### Phase 3: Generate infra-patterns/SKILL.md
 
-Create `.claude/skills/infra-patterns.md` with:
+Write to `.claude/skills/infra-patterns/SKILL.md` (create dirs if needed) with:
 - Overview (IaC tool, deployment target, CI/CD platform, env strategy)
 - Per-type patterns (structure + naming + canonical + rules)
 - Environment strategy (how envs differ, what's shared)
@@ -47,9 +47,9 @@ Create `.claude/skills/infra-patterns.md` with:
 
 Max 200 lines. No prose — bullets + code snippets only.
 
-### Phase 4: Generate use-infra-patterns.md
+### Phase 4: Generate use-infra-patterns/SKILL.md
 
-Create `.claude/skills/use-infra-patterns.md` — infra task executor with:
+Write to `.claude/skills/use-infra-patterns/SKILL.md` (create dirs if needed) — infra task executor with:
 - Terse communication
 - 3 checkpoints (Plan → Implement → Validate)
 - Complexity tier hints per checkpoint

@@ -47,8 +47,8 @@ Model routing handled by workflow script internally. Generated skills use comple
 Creates in target repository:
 ```
 .claude/skills/
-├── test-patterns.md        ← Test conventions reference (invoked via /test-patterns)
-└── use-test-patterns.md    ← Test task executor (invoked via /use-test-patterns)
+├── test-patterns/SKILL.md        ← Test conventions reference (invoked via /test-patterns)
+└── use-test-patterns/SKILL.md    ← Test task executor (invoked via /use-test-patterns)
 ```
 
 ## Common Mistakes

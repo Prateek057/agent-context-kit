@@ -48,8 +48,8 @@ Model routing handled by workflow script internally. Generated skills use comple
 Creates in target repository:
 ```
 .claude/skills/
-├── infra-patterns.md        ← Infra conventions reference (invoked via /infra-patterns)
-└── use-infra-patterns.md    ← Infra task executor (invoked via /use-infra-patterns)
+├── infra-patterns/SKILL.md        ← Infra conventions reference (invoked via /infra-patterns)
+└── use-infra-patterns/SKILL.md    ← Infra task executor (invoked via /use-infra-patterns)
 ```
 
 ## Common Mistakes

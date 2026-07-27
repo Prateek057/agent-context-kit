@@ -5,7 +5,7 @@ description: Analyze repository coding patterns and generate a token-efficient p
 
 # Codeprint — Code Pattern Extractor (Portable)
 
-Generate `.claude/skills/patterns.md` and `.claude/skills/use-patterns.md` for the current repository.
+Generate `.claude/skills/patterns/SKILL.md` and `.claude/skills/use-patterns/SKILL.md` for the current repository.
 
 **Scope:** Application code only — handlers, services, repositories, controllers, DTOs, validators, workers, domain models, middleware. NOT tests, NOT infrastructure.
 
@@ -44,9 +44,9 @@ Per subtype (max 8, highest file count first), read FIRST 60 lines of 2 sample f
 5. Key rules (3 bullets max)
 6. Single canonical file path
 
-### Phase 5: Generate patterns.md
+### Phase 5: Generate patterns/SKILL.md
 
-Create `.claude/skills/patterns.md` with:
+Write to `.claude/skills/patterns/SKILL.md` (create dirs if needed) with:
 - Overview (topology, languages, frameworks)
 - Subtypes (location + naming + template + canonical + rules)
 - Conventions (DI, config, logging — inferred from extractions)
@@ -56,9 +56,9 @@ Create `.claude/skills/patterns.md` with:
 
 Max 300 lines. No prose — bullets + code snippets only.
 
-### Phase 6: Generate use-patterns.md
+### Phase 6: Generate use-patterns/SKILL.md
 
-Create `.claude/skills/use-patterns.md` — task executor with:
+Write to `.claude/skills/use-patterns/SKILL.md` (create dirs if needed) — task executor with:
 - Terse communication (fragments OK, no filler)
 - 4 checkpoints (Plan → Implement → Wire → Verify)
 - Complexity tier hints per checkpoint (Low/Medium/High)

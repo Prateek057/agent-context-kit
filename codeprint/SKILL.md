@@ -91,8 +91,8 @@ If running in a token-constrained environment:
 Creates in the target repository:
 ```
 .claude/skills/
-├── patterns.md       ← Conventions reference (invoked via /patterns)
-└── use-patterns.md   ← Task executor with checkpoints (invoked via /use-patterns)
+├── patterns/SKILL.md       ← Conventions reference (invoked via /patterns)
+└── use-patterns/SKILL.md   ← Task executor with checkpoints (invoked via /use-patterns)
 ```
 
 ## Common Mistakes
