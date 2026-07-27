@@ -36,7 +36,7 @@ Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/codeprint.js" })
 
 If user explicitly requests workflow mode ("run codeprint workflow", "use workflow mode"), invoke the above.
 
-Model routing handled automatically by workflow script. No manual switching needed.
+Model routing handled by workflow script internally. Generated skills use complexity tiers (Low/Medium/High) — no hardcoded model names.
 
 Budget-aware: checks remaining tokens between phases and degrades gracefully.
 

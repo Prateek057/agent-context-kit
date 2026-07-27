@@ -176,6 +176,7 @@ This is a task executor skill that applies the repo's coding patterns with:
 - 4 checkpoints: Plan → Implement → Wire → Verify
 - Human gates before irreversible decisions
 - Token optimization rules (don't re-read, don't repeat back, use Edit not Write)
+- Complexity tier hints per checkpoint (Low/Medium/High — user picks model)
 
 Adapt to this repo specifically:
 - Topology: ${detection.topology}
@@ -184,6 +185,7 @@ Adapt to this repo specifically:
 - Build command: infer from language (dotnet build / npm run build / go build / etc.)
 - Shared libs path: infer from detection data
 - Infra path: ${detection.infrastructure?.iac || 'none detected'}
+
 
 Write the COMPLETE file content with YAML frontmatter. Ready to save.`,
     { label: 'generate:use-patterns', phase: 'Generate', model: 'sonnet', effort: 'medium' }

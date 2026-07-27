@@ -26,6 +26,17 @@ arguments:
 
 Execute the given task following repo coding patterns. Optimize for low token usage.
 
+## Complexity Tiers
+
+| Checkpoint | Complexity | Why |
+|-----------|-----------|-----|
+| Plan | Low | File listing, pattern matching |
+| Implement | Medium–High | Code generation requiring convention adherence |
+| Wire | Medium | Mechanical registration, config edits |
+| Verify | Low | Run build, read output |
+
+Use cheapest model for Low, session default for Medium, strongest available for High.
+
 ## Checkpoints
 
 | # | Gate | What happens |
