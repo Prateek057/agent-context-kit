@@ -10,7 +10,7 @@ SKILLS_DIR="$HOME/.claude/skills"
 usage() {
   echo "Usage: $0 [install|uninstall|status]"
   echo ""
-  echo "  install    Symlink SKILL.md to ~/.claude/skills/codeprint.md"
+  echo "  install    Symlink codeprint directory to ~/.claude/skills/codeprint"
   echo "  uninstall  Remove the symlink"
   echo "  status     Check if installed"
   exit 1
@@ -18,32 +18,38 @@ usage() {
 
 install() {
   mkdir -p "$SKILLS_DIR"
-  if [ -L "$SKILLS_DIR/$SKILL_NAME.md" ]; then
-    echo "Already installed: $SKILLS_DIR/$SKILL_NAME.md"
+  if [ -L "$SKILLS_DIR/$SKILL_NAME" ]; then
+    echo "Already installed: $SKILLS_DIR/$SKILL_NAME"
     return 0
   fi
-  if [ -f "$SKILLS_DIR/$SKILL_NAME.md" ]; then
-    echo "Error: $SKILLS_DIR/$SKILL_NAME.md exists but is not a symlink. Remove it first."
+  if [ -d "$SKILLS_DIR/$SKILL_NAME" ]; then
+    echo "Error: $SKILLS_DIR/$SKILL_NAME exists but is not a symlink. Remove it first."
     return 1
   fi
-  ln -s "$PROJECT_DIR/SKILL.md" "$SKILLS_DIR/$SKILL_NAME.md"
-  echo "Installed: $SKILLS_DIR/$SKILL_NAME.md -> $PROJECT_DIR/SKILL.md"
+  # Remove legacy file symlink if present
+  [ -L "$SKILLS_DIR/$SKILL_NAME.md" ] && rm "$SKILLS_DIR/$SKILL_NAME.md"
+  ln -s "$PROJECT_DIR" "$SKILLS_DIR/$SKILL_NAME"
+  echo "Installed: $SKILLS_DIR/$SKILL_NAME -> $PROJECT_DIR"
 }
 
 uninstall() {
-  if [ -L "$SKILLS_DIR/$SKILL_NAME.md" ]; then
+  if [ -L "$SKILLS_DIR/$SKILL_NAME" ]; then
+    rm "$SKILLS_DIR/$SKILL_NAME"
+    echo "Uninstalled: removed $SKILLS_DIR/$SKILL_NAME"
+  elif [ -L "$SKILLS_DIR/$SKILL_NAME.md" ]; then
     rm "$SKILLS_DIR/$SKILL_NAME.md"
-    echo "Uninstalled: removed $SKILLS_DIR/$SKILL_NAME.md"
+    echo "Uninstalled: removed legacy $SKILLS_DIR/$SKILL_NAME.md"
   else
     echo "Not installed."
   fi
 }
 
 status() {
-  if [ -L "$SKILLS_DIR/$SKILL_NAME.md" ]; then
-    echo "Installed: $SKILLS_DIR/$SKILL_NAME.md -> $(readlink "$SKILLS_DIR/$SKILL_NAME.md")"
-  elif [ -f "$SKILLS_DIR/$SKILL_NAME.md" ]; then
-    echo "Installed (copy, not symlink): $SKILLS_DIR/$SKILL_NAME.md"
+  if [ -L "$SKILLS_DIR/$SKILL_NAME" ]; then
+    echo "Installed: $SKILLS_DIR/$SKILL_NAME -> $(readlink "$SKILLS_DIR/$SKILL_NAME")"
+  elif [ -L "$SKILLS_DIR/$SKILL_NAME.md" ]; then
+    echo "Installed (legacy file symlink): $SKILLS_DIR/$SKILL_NAME.md -> $(readlink "$SKILLS_DIR/$SKILL_NAME.md")"
+    echo "Run 'install' again to upgrade to directory symlink."
   else
     echo "Not installed."
   fi
