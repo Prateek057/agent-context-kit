@@ -1,11 +1,13 @@
 ---
 name: codeprint
-description: Analyze any repository's coding patterns and generate a token-efficient patterns skill. Self-contained version — no external references needed.
+description: Analyze repository coding patterns and generate a token-efficient patterns skill. Excludes tests (use testprint) and infrastructure (use infraprint). Self-contained version.
 ---
 
-# Codeprint — Repository Pattern Extractor (Portable)
+# Codeprint — Code Pattern Extractor (Portable)
 
 Generate `.claude/skills/patterns.md` and `.claude/skills/use-patterns.md` for the current repository.
+
+**Scope:** Application code only — handlers, services, repositories, controllers, DTOs, validators, workers, domain models, middleware. NOT tests, NOT infrastructure.
 
 ## Execution Steps
 
@@ -28,45 +30,49 @@ Then detect frameworks from dependencies (ASP.NET, React, NestJS, Spring, FastAP
 
 ### Phase 3: Subtype Identification
 
-Find: Handlers, Controllers, Endpoints, Services, Repositories, Domain, Workers, Middleware, Validators, Mappers, DTOs, Events/Commands/Queries, Tests, Infrastructure, Config/Startup.
+Find CODE subtypes only: Handlers, Controllers, Endpoints, Services, Repositories, Domain Models, Workers/Consumers, Middleware, Validators, Mappers, DTOs, Events/Commands/Queries, Config/Startup.
 
-### Phase 3.5: Infrastructure Detection
-
-Detect IaC (`*.tf`, `cdk.json`, `Pulumi.yaml`), Docker, CI/CD (`.github/workflows/`, etc.), Deployment (ECS, K8s, Lambda), Environment strategy.
+EXCLUDE: Test files, infrastructure (terraform, docker, CI/CD).
 
 ### Phase 4: Pattern Extraction
 
-Per subtype, sample 2-3 files. Extract: naming, structure, method signatures, error handling, validation, logging, testing patterns, naming conventions.
+Per subtype (max 8, highest file count first), read FIRST 60 lines of 2 sample files. Extract:
+1. Naming convention (1 sentence)
+2. Constructor pattern (1 sentence)
+3. Method signature pattern (1 sentence)
+4. Error handling (1 sentence)
+5. Key rules (3 bullets max)
+6. Single canonical file path
 
-### Phase 5: Cross-Cutting Conventions
+### Phase 5: Generate patterns.md
 
-Extract: DI registration, config management, API contracts, observability, resilience, auth, async patterns, mapping, inter-module communication.
+Create `.claude/skills/patterns.md` with:
+- Overview (topology, languages, frameworks)
+- Subtypes (location + naming + template + canonical + rules)
+- Conventions (DI, config, logging — inferred from extractions)
+- Anti-Patterns (inferred from consistency, max 7 items)
+- Scaffold Reference
+- Preferred Dependencies
 
-### Phase 6: Anti-Pattern Detection
+Max 300 lines. No prose — bullets + code snippets only.
 
-Check linter configs, CLAUDE.md, CONTRIBUTING.md, and infer from consistency. Max 10 items.
-
-### Phase 7: Generate patterns.md
-
-Create `.claude/skills/patterns.md` with: Overview, Subtypes (location + naming + template + canonical + rules), Infrastructure, Cross-Cutting, Anti-Patterns, Scaffold Reference, Preferred Dependencies. Max 300 lines. No prose.
-
-### Phase 8: Generate use-patterns.md
+### Phase 6: Generate use-patterns.md
 
 Create `.claude/skills/use-patterns.md` — task executor with:
-- Caveman mode communication
-- 4 checkpoints (plan → implement → wire → verify)
+- Terse communication (fragments OK, no filler)
+- 4 checkpoints (Plan → Implement → Wire → Verify)
+- Complexity tier hints per checkpoint (Low/Medium/High)
 - Human gates before irreversible decisions
 - Token optimization rules
 - Adapt wiring/build commands to detected repo
 
-### Phase 9: Recommend Tooling
-
-Check for signals (`.github/`, test framework, docker-compose, IaC, OpenAPI, migrations, monorepo, CI, commitlint). Present max 5 recommendations. Ask before installing.
-
 ## Rules
 
-- Sample 2-3 files per subtype only — don't read everything
+- Sample 2 files per subtype only — don't read everything
+- Read first 60 lines only — don't read full files
 - No prose in generated output — bullets + code snippets
 - Max 300 lines for patterns.md
 - Prefer canonical file paths over explaining
-- Never auto-install tooling
+- Keep total response under 150 words per extraction
+- For tests → tell user to run `/testprint`
+- For infra → tell user to run `/infraprint`

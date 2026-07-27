@@ -1,31 +1,29 @@
 export const meta = {
   name: 'codeprint',
-  description: 'Analyze repository patterns and generate token-efficient coding patterns skill with model-aware routing',
+  description: 'Analyze repository coding patterns (excludes tests and infra — use testprint/infraprint for those)',
   phases: [
-    { title: 'Detect', detail: 'Topology, languages, subtypes, infrastructure', model: 'haiku' },
-    { title: 'Extract', detail: 'Sample files, extract patterns and conventions', model: 'sonnet' },
-    { title: 'Generate', detail: 'Produce patterns.md and use-patterns.md', model: 'opus' },
-    { title: 'Recommend', detail: 'Suggest additional tooling', model: 'haiku' },
+    { title: 'Detect', detail: 'Topology, languages, code subtypes' },
+    { title: 'Extract', detail: 'Sample files, extract conventions' },
+    { title: 'Generate', detail: 'Produce patterns.md and use-patterns.md' },
   ],
 }
 
-// Phase 1-3.5: Detection (Haiku — mechanical scanning)
+// Phase 1: Detection (code subtypes only — no tests, no infra)
 phase('Detect')
-log('Starting codeprint. Detecting topology, languages, subtypes, infrastructure.')
+log('Starting codeprint. Detecting topology, languages, code subtypes.')
 
 const detection = await agent(
-  `Analyze this repository structure and report findings.
+  `Analyze this repository structure for CODE patterns only.
 
 Do the following:
 1. List root directory contents
 2. Detect topology: monorepo (multiple services/packages/apps with own build files), monolith (single entry point, layered dirs), or microservice (single service, shallow)
 3. Detect languages by finding build files (.csproj, package.json, go.mod, Cargo.toml, pom.xml, pyproject.toml, etc.)
 4. Detect frameworks from dependency manifests
-5. Identify subtypes present (handlers, controllers, services, repositories, workers, validators, mappers, tests, etc.) by scanning directory names and file suffixes
-6. Detect infrastructure: IaC tool (*.tf, cdk.json, Pulumi.yaml), Docker (Dockerfile patterns), CI/CD (.github/workflows/, etc.), deployment mechanism
-7. Detect environment strategy (how dev/staging/prod differ)
+5. Identify CODE subtypes only: handlers, controllers, services, repositories, workers, validators, mappers, DTOs, domain models, middleware, consumers
+   EXCLUDE: test files, infrastructure (terraform, docker, CI/CD), config files
 
-Report structured findings. Be thorough but concise — list file counts, not file contents.`,
+Report structured findings. List file counts, not file contents.`,
   { label: 'detect:structure', phase: 'Detect', model: 'haiku', effort: 'low', schema: {
     type: 'object',
     properties: {
@@ -41,14 +39,6 @@ Report structured findings. Be thorough but concise — list file counts, not fi
         fileCount: { type: 'number' },
         sampleFiles: { type: 'array', items: { type: 'string' } }
       }, required: ['name', 'location', 'sampleFiles'] } },
-      infrastructure: { type: 'object', properties: {
-        iac: { type: 'string' },
-        iacStructure: { type: 'string' },
-        docker: { type: 'string' },
-        cicd: { type: 'string' },
-        deployment: { type: 'string' },
-        environments: { type: 'string' }
-      } },
       monorepoStructure: { type: 'string' }
     },
     required: ['topology', 'languages', 'subtypes']
@@ -157,8 +147,9 @@ Follow these rules strictly:
 - No prose — bullets and code snippets only
 - Minimal code templates (constructor + one method signature)
 - Prefer canonical file paths over re-explaining
-- Anti-patterns section: max 10 items
-- Include: Overview, Subtypes (with templates), Infrastructure, Anti-Patterns, Scaffold Reference, Preferred Dependencies
+- Anti-patterns section: max 7 items
+- Include: Overview, Subtypes (with templates), Conventions, Anti-Patterns, Scaffold Reference, Preferred Dependencies
+- NO infrastructure/test sections (those are handled by infraprint/testprint)
 - Infer cross-cutting conventions (DI, config, logging) from extraction data — brief "Conventions" section
 - Infer anti-patterns from consistency (if pattern A always used over common alternative B → "Don't use B"). Max 7 items.
 
@@ -184,7 +175,7 @@ Adapt to this repo specifically:
 - Wiring mechanism: infer from extraction data
 - Build command: infer from language (dotnet build / npm run build / go build / etc.)
 - Shared libs path: infer from detection data
-- Infra path: ${detection.infrastructure?.iac || 'none detected'}
+- Note: infra patterns handled separately by /infraprint
 
 
 Write the COMPLETE file content with YAML frontmatter. Ready to save.`,
@@ -192,48 +183,11 @@ Write the COMPLETE file content with YAML frontmatter. Ready to save.`,
   )
 }
 
-// Phase 9: Recommend (Haiku — lookup matching)
-phase('Recommend')
-
-let recommendations = null
-if (!budget.total || budget.remaining() > 10000) {
-  recommendations = await agent(
-    `Based on this repo analysis, recommend up to 5 Claude Code tools/skills that would help.
-
-Detection data: topology=${detection.topology}, languages=${detection.languages.map(l => l.name).join(',')}, cicd=${detection.infrastructure?.cicd || 'none'}, infra=${detection.infrastructure?.iac || 'none'}
-
-Check for these signals and recommend if present:
-- .github/ → GitHub MCP server
-- Test framework → /run-tests skill
-- docker-compose.yml → /dev-up skill
-- Terraform/CDK → /plan-infra skill
-- OpenAPI specs → /gen-client skill
-- Migrations → /migrate skill
-- Monorepo >3 services → /affected skill
-- CI/CD → /ci-status skill
-- Commitlint → /commit skill
-
-Report which are applicable with one-line reason each.`,
-    { label: 'recommend:tooling', phase: 'Recommend', model: 'haiku', effort: 'low', schema: {
-      type: 'object',
-      properties: {
-        recommendations: { type: 'array', items: { type: 'object', properties: {
-          name: { type: 'string' },
-          reason: { type: 'string' },
-          scope: { type: 'string', enum: ['global', 'project'] }
-        }, required: ['name', 'reason', 'scope'] }, maxItems: 5 }
-      },
-      required: ['recommendations']
-    } }
-  )
-}
-
-log('Codeprint complete.')
+log('Codeprint complete. Run /testprint for test patterns, /infraprint for infra patterns.')
 
 return {
   detection,
   extractions: validExtractions,
   patternsSkill,
-  usePatternsSkill,
-  recommendations
+  usePatternsSkill
 }

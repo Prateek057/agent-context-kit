@@ -48,17 +48,19 @@ Budget-aware: checks remaining tokens between phases and degrades gracefully.
 |-------|------|-----------|
 | 1 | Topology detection | Read `references/topology.md` |
 | 2 | Language & framework detection | Read `references/languages.md` |
-| 3 | Subtype identification | Read `references/subtypes.md` |
-| 4 | Infrastructure & DevOps | Read `references/infrastructure.md` |
-| 5 | Pattern extraction | Read `references/extraction.md` |
-| 6 | Generate patterns.md | Read `references/output-format.md` |
-| 7 | Generate use-patterns.md | Read `references/use-patterns-template.md` |
-| 8 | Recommend tooling | Read `references/tooling-recommendations.md` |
+| 3 | Code subtype identification | Read `references/subtypes.md` |
+| 4 | Pattern extraction | Read `references/extraction.md` |
+| 5 | Generate patterns.md | Read `references/output-format.md` |
+| 6 | Generate use-patterns.md | Read `references/use-patterns-template.md` |
 
 **User communication:** At each phase transition, inform:
 ```
-[phase N/8] {phase name}
+[phase N/6] {phase name}
 ```
+
+**Scope boundary:** If tests or infra detected, inform user:
+- Tests → "Run `/testprint` for test patterns"
+- Infrastructure → "Run `/infraprint` for infra patterns"
 
 ## Budget-Aware Execution
 
