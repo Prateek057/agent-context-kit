@@ -36,40 +36,28 @@ Workflow({ scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/codeprint.js" })
 
 If user explicitly requests workflow mode ("run codeprint workflow", "use workflow mode"), invoke the above.
 
-Automatically routes each phase to the optimal model:
-- **Detect** (Phases 1-3.5): Haiku
-- **Extract** (Phases 4-5): Sonnet
-- **Generate** (Phases 6-8): Opus
-- **Recommend** (Phase 9): Haiku
+Model routing handled automatically by workflow script. No manual switching needed.
 
-Budget-aware: checks `budget.remaining()` between phases and degrades gracefully.
-
-**Estimated token savings:** ~60-70% cost reduction vs running everything on Opus.
+Budget-aware: checks remaining tokens between phases and degrades gracefully.
 
 **Fallback:** If Workflow tool is not available (older Claude Code builds), execute phases sequentially in skill mode using the reference docs below.
 
-## Model Routing
+## Phases
 
-Each phase has an optimal model tier. In workflow mode, route automatically. In skill mode, inform the user.
-
-| Phase | What | Model | Reference |
-|-------|------|-------|-----------|
-| 1 | Topology detection | 🟢 Haiku | **REQUIRED:** Read `references/topology.md` |
-| 2 | Language & framework detection | 🟢 Haiku | **REQUIRED:** Read `references/languages.md` |
-| 3 | Subtype identification | 🟢 Haiku | **REQUIRED:** Read `references/subtypes.md` |
-| 3.5 | Infrastructure & DevOps | 🟡 Sonnet | **REQUIRED:** Read `references/infrastructure.md` |
-| 4 | Pattern extraction | 🟡 Sonnet | **REQUIRED:** Read `references/extraction.md` |
-| 5 | Cross-cutting conventions | 🟡 Sonnet | **REQUIRED:** Read `references/cross-cutting.md` |
-| 6 | Anti-pattern detection | 🔴 Opus | **REQUIRED:** Read `references/anti-patterns.md` |
-| 7 | Generate patterns.md | 🔴 Opus | **REQUIRED:** Read `references/output-format.md` |
-| 8 | Generate use-patterns.md | 🟡 Sonnet | **REQUIRED:** Read `references/use-patterns-template.md` |
-| 9 | Recommend tooling | 🟢 Haiku | **REQUIRED:** Read `references/tooling-recommendations.md` |
-
-**Legend:** 🟢 Haiku (cheap/fast) | 🟡 Sonnet (balanced) | 🔴 Opus (quality-critical)
+| Phase | What | Reference |
+|-------|------|-----------|
+| 1 | Topology detection | Read `references/topology.md` |
+| 2 | Language & framework detection | Read `references/languages.md` |
+| 3 | Subtype identification | Read `references/subtypes.md` |
+| 4 | Infrastructure & DevOps | Read `references/infrastructure.md` |
+| 5 | Pattern extraction | Read `references/extraction.md` |
+| 6 | Generate patterns.md | Read `references/output-format.md` |
+| 7 | Generate use-patterns.md | Read `references/use-patterns-template.md` |
+| 8 | Recommend tooling | Read `references/tooling-recommendations.md` |
 
 **User communication:** At each phase transition, inform:
 ```
-[phase N/9] {phase name} ({model tier})
+[phase N/8] {phase name}
 ```
 
 ## Budget-Aware Execution

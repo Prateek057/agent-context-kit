@@ -26,7 +26,7 @@ Do the following:
 7. Detect environment strategy (how dev/staging/prod differ)
 
 Report structured findings. Be thorough but concise — list file counts, not file contents.`,
-  { label: 'detect:structure', phase: 'Detect', model: 'haiku', schema: {
+  { label: 'detect:structure', phase: 'Detect', model: 'haiku', effort: 'low', schema: {
     type: 'object',
     properties: {
       topology: { type: 'string', enum: ['monorepo', 'monolith', 'microservice'] },
@@ -76,22 +76,28 @@ if (budget.total && budget.remaining() < 30000) {
 phase('Extract')
 log('Extracting patterns from representative files.')
 
-const extractionPrompts = detection.subtypes.map(subtype => ({
+// Cap subtypes to 8 most important (highest file count = most representative)
+const topSubtypes = detection.subtypes
+  .sort((a, b) => (b.fileCount || 0) - (a.fileCount || 0))
+  .slice(0, 8)
+log(`Extracting top ${topSubtypes.length} subtypes (of ${detection.subtypes.length} detected)`)
+
+const extractionPrompts = topSubtypes.map(subtype => ({
   subtype: subtype.name,
-  prompt: `Read 2-3 representative files for the "${subtype.name}" subtype.
-Sample files: ${subtype.sampleFiles.join(', ')}
+  prompt: `Extract coding patterns for "${subtype.name}" subtype.
+Sample files: ${subtype.sampleFiles.slice(0, 2).join(', ')}
 
-Extract:
-1. File naming convention (casing, suffixes)
-2. Class/function structure (constructor pattern, DI, base classes)
-3. Method signatures (async, return types, parameters)
-4. Error handling approach
-5. Validation approach
-6. Logging approach
-7. Key rules (3-5 bullets)
+IMPORTANT: Read only the FIRST 60 lines of each file. Do NOT read entire files.
 
-Also note the single best "canonical" file path to use as a reference.
-Report as structured data.`
+Extract (terse — each answer max 1 sentence):
+1. Naming convention (casing, suffix)
+2. Constructor pattern (DI style)
+3. Method signature pattern (async, return type)
+4. Error handling (1 sentence)
+5. Key rules (3 bullets max)
+
+Pick the single best canonical file path.
+Keep total response under 150 words.`
 }))
 
 const extractions = await pipeline(
@@ -100,6 +106,7 @@ const extractions = await pipeline(
     label: `extract:${item.subtype}`,
     phase: 'Extract',
     model: 'sonnet',
+    effort: 'low',
     schema: {
       type: 'object',
       properties: {
@@ -121,61 +128,9 @@ const extractions = await pipeline(
 const validExtractions = extractions.filter(Boolean)
 log(`Extracted patterns for ${validExtractions.length}/${detection.subtypes.length} subtypes`)
 
-// Cross-cutting extraction
-const crossCutting = await agent(
-  `Analyze cross-cutting patterns in this repository:
-1. DI/IoC registration approach (check composition root / startup files)
-2. Config management (options pattern, env vars, secrets)
-3. API contracts (request/response shapes, error format, versioning)
-4. Observability (logging library, metrics, tracing, health checks)
-5. Resilience (retry, circuit breaker, timeout patterns)
-6. Auth patterns
-7. Async patterns (CancellationToken, queuing)
-8. Mapping approach (manual vs library)
-9. Inter-module communication (events, direct calls)
+// Cross-cutting inferred from extraction data during generation — no separate agent
 
-Focus on HOW things are done, not WHAT they do. Report conventions only.`,
-  { label: 'extract:cross-cutting', phase: 'Extract', model: 'sonnet', schema: {
-    type: 'object',
-    properties: {
-      diRegistration: { type: 'string' },
-      config: { type: 'string' },
-      apiContracts: { type: 'string' },
-      observability: { type: 'string' },
-      resilience: { type: 'string' },
-      auth: { type: 'string' },
-      asyncPatterns: { type: 'string' },
-      mapping: { type: 'string' },
-      communication: { type: 'string' }
-    }
-  } }
-)
-
-// Anti-pattern detection (Opus — reasoning from absence)
-const antiPatterns = await agent(
-  `Analyze this codebase for anti-patterns — things the team explicitly AVOIDS despite being common.
-
-Check:
-1. Linter/analyzer configs (.editorconfig, .eslintrc, stylecop, Directory.Build.props)
-2. CLAUDE.md, CONTRIBUTING.md, ARCHITECTURE.md for documented don'ts
-3. Infer from consistency: if pattern A is always used over common alternative B, B is likely banned
-
-Examples: "Don't use MediatR (custom mediator exists)", "Don't mock infrastructure (use Testcontainers)"
-
-Report max 10 anti-patterns, most impactful first. Format each as: "Don't [X] — [reason / use Y instead]"`,
-  { label: 'extract:anti-patterns', phase: 'Extract', model: 'opus', schema: {
-    type: 'object',
-    properties: {
-      antiPatterns: { type: 'array', items: { type: 'string' }, maxItems: 10 },
-      preferredDeps: { type: 'array', items: { type: 'object', properties: {
-        purpose: { type: 'string' },
-        use: { type: 'string' },
-        dontUse: { type: 'string' }
-      } } }
-    },
-    required: ['antiPatterns']
-  } }
-)
+// Anti-patterns inferred during generation from extraction consistency — no separate agent
 
 // Budget check before generation
 if (budget.total && budget.remaining() < 20000) {
@@ -188,9 +143,7 @@ log('Generating patterns.md')
 
 const generateInput = JSON.stringify({
   detection,
-  extractions: validExtractions,
-  crossCutting,
-  antiPatterns
+  extractions: validExtractions
 })
 
 const patternsSkill = await agent(
@@ -205,10 +158,12 @@ Follow these rules strictly:
 - Minimal code templates (constructor + one method signature)
 - Prefer canonical file paths over re-explaining
 - Anti-patterns section: max 10 items
-- Include: Overview, Subtypes (with templates), Infrastructure, Cross-Cutting, Anti-Patterns, Scaffold Reference, Preferred Dependencies
+- Include: Overview, Subtypes (with templates), Infrastructure, Anti-Patterns, Scaffold Reference, Preferred Dependencies
+- Infer cross-cutting conventions (DI, config, logging) from extraction data — brief "Conventions" section
+- Infer anti-patterns from consistency (if pattern A always used over common alternative B → "Don't use B"). Max 7 items.
 
 Write the COMPLETE file content. It must be valid markdown ready to save.`,
-  { label: 'generate:patterns', phase: 'Generate', model: 'opus' }
+  { label: 'generate:patterns', phase: 'Generate', model: 'opus', effort: 'medium' }
 )
 
 let usePatternsSkill = null
@@ -217,23 +172,21 @@ if (!budget.total || budget.remaining() > 15000) {
     `Generate a .claude/skills/use-patterns.md file for this repository.
 
 This is a task executor skill that applies the repo's coding patterns with:
-- Caveman mode communication (terse, no filler)
+- Terse communication (fragments OK, no filler)
 - 4 checkpoints: Plan → Implement → Wire → Verify
 - Human gates before irreversible decisions
-- Token optimization rules
-- Model routing table (Haiku for scanning, Sonnet for generation, Opus for complex logic)
-- Budget awareness (degrade gracefully if tokens run low)
+- Token optimization rules (don't re-read, don't repeat back, use Edit not Write)
 
 Adapt to this repo specifically:
 - Topology: ${detection.topology}
 - Languages: ${detection.languages.map(l => l.name).join(', ')}
-- Wiring mechanism: ${crossCutting?.diRegistration || 'standard DI'}
+- Wiring mechanism: infer from extraction data
 - Build command: infer from language (dotnet build / npm run build / go build / etc.)
 - Shared libs path: infer from detection data
 - Infra path: ${detection.infrastructure?.iac || 'none detected'}
 
 Write the COMPLETE file content with YAML frontmatter. Ready to save.`,
-    { label: 'generate:use-patterns', phase: 'Generate', model: 'sonnet' }
+    { label: 'generate:use-patterns', phase: 'Generate', model: 'sonnet', effort: 'medium' }
   )
 }
 
@@ -259,7 +212,7 @@ Check for these signals and recommend if present:
 - Commitlint → /commit skill
 
 Report which are applicable with one-line reason each.`,
-    { label: 'recommend:tooling', phase: 'Recommend', model: 'haiku', schema: {
+    { label: 'recommend:tooling', phase: 'Recommend', model: 'haiku', effort: 'low', schema: {
       type: 'object',
       properties: {
         recommendations: { type: 'array', items: { type: 'object', properties: {
@@ -278,8 +231,6 @@ log('Codeprint complete.')
 return {
   detection,
   extractions: validExtractions,
-  crossCutting,
-  antiPatterns,
   patternsSkill,
   usePatternsSkill,
   recommendations

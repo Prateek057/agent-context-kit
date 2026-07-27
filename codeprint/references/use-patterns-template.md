@@ -26,27 +26,16 @@ arguments:
 
 Execute the given task following repo coding patterns. Optimize for low token usage.
 
-## Model Routing
+## Checkpoints
 
-| Checkpoint | Task | Model |
-|-----------|------|-------|
-| Plan | Identify patterns, list files | 🟢 Haiku |
-| Implementation | Generate code following conventions | 🟡 Sonnet (simple) / 🔴 Opus (complex) |
-| Wiring | DI registration, config updates | 🟡 Sonnet |
-| Verify | Run build, check output | 🟢 Haiku |
+| # | Gate | What happens |
+|---|------|-------------|
+| 1 | Plan | Identify patterns, list files, state assumptions |
+| 2 | Implement | Generate code following conventions |
+| 3 | Wire | DI registration, config updates |
+| 4 | Verify | Run build, check output |
 
-Inform user at each checkpoint: `[checkpoint N] {name} ({model tier})`
-
-## Budget Awareness
-
-| Budget remaining | Strategy |
-|-----------------|----------|
-| Plenty | Full checkpoints with human gates |
-| Moderate | Collapse checkpoints 2+3, fewer confirmations |
-| Low (<15k) | Single-pass: plan + implement in one shot, skip verify |
-| Critical (<5k) | Output plan only: "Budget low. Here's the plan — execute manually or re-run with more budget." |
-
-Never crash silently. Always inform: `"Budget running low. Compressing remaining work."`
+Collapse 2+3 for simple tasks (single file). Skip 4 if no build system.
 
 ## Behavior Rules
 
