@@ -5,22 +5,22 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SKILL_NAME="infraprint"
-SKILLS_DIR="$HOME/.claude/skills"
-TARGET="$SKILLS_DIR/$SKILL_NAME.md"
+SKILL_DIR="$HOME/.claude/skills/$SKILL_NAME"
+TARGET="$SKILL_DIR/SKILL.md"
 SOURCE="$PROJECT_DIR/SKILL-portable.md"
 
 usage() {
   echo "Usage: $0 [install|update|uninstall|status]"
   echo ""
-  echo "  install    Copy portable skill to ~/.claude/skills/infraprint.md"
+  echo "  install    Copy portable skill to ~/.claude/skills/$SKILL_NAME/SKILL.md"
   echo "  update     Overwrite with latest version"
-  echo "  uninstall  Remove the skill file"
+  echo "  uninstall  Remove the skill"
   echo "  status     Check if installed"
   exit 1
 }
 
 install() {
-  mkdir -p "$SKILLS_DIR"
+  mkdir -p "$SKILL_DIR"
   if [ -f "$TARGET" ]; then
     echo "Already installed: $TARGET"
     echo "Run '$0 update' to overwrite with latest version."
@@ -31,19 +31,15 @@ install() {
 }
 
 update() {
-  mkdir -p "$SKILLS_DIR"
-  if [ ! -f "$TARGET" ]; then
-    echo "Not installed. Run '$0 install' first."
-    return 1
-  fi
+  mkdir -p "$SKILL_DIR"
   cp "$SOURCE" "$TARGET"
   echo "Updated: $TARGET"
 }
 
 uninstall() {
-  if [ -f "$TARGET" ] || [ -L "$TARGET" ]; then
-    rm "$TARGET"
-    echo "Uninstalled: removed $TARGET"
+  if [ -d "$SKILL_DIR" ]; then
+    rm -rf "$SKILL_DIR"
+    echo "Uninstalled: removed $SKILL_DIR"
   else
     echo "Not installed."
   fi
