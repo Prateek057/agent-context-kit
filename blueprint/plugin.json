@@ -1,0 +1,10 @@
+{
+  "name": "blueprint",
+  "displayName": "blueprint",
+  "version": "1.0.0",
+  "description": "Runs the print tools in order (contextprint audit, then codeprint, testprint, infraprint where they apply), reconciles the output and refreshes only stale convention skills.",
+  "suggestedPrompts": [
+    "Set up the agent context for this repo with blueprint",
+    "Refresh the generated convention skills that are stale"
+  ]
+}

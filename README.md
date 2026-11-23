@@ -1,92 +1,82 @@
-# Claude Toolkit
+# Agent Context Kit
 
-A collection of token-efficient, model-aware skills for [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
+> [!NOTE]
+> This repository was previously named **claude-toolkit**. It was renamed because the skills are no longer tied to one host: they run on Claude Code, Antigravity, Gemini CLI and Codex. GitHub redirects the old URL. To point an existing clone at the new name, run `git remote set-url origin git@github.com:Prateek057/agent-context-kit.git`. Then re-run `./install.sh install` from the new location, because the installed skills are symlinks to the old path.
 
-## Core Philosophy
+Skills that help AI coding agents work in a repository. They run on any agent host that reads `SKILL.md` files (Claude Code, Antigravity, Gemini CLI, Codex).
 
-### 1. Token Efficiency First
+## Tools
 
-Every skill in this toolkit is designed to minimize token consumption:
-- **On-demand loading** — skills load only when invoked, not every message
-- **Reference splitting** — detailed docs in `references/` are read per-phase, not all upfront
-- **Compressed output** — bullets + code snippets, never prose
-- **Canonical pointers** — "copy from `path/to/file`" instead of re-explaining patterns
+| Tool | What it does | Writes |
+|------|--------------|--------|
+| [blueprint](./blueprint/) | Orchestrator. Plans which tools apply, runs the contextprint audit and then the generators, reconciles the output (links instead of copied values, AGENTS.md routes, no overlap) and in refresh mode re-runs only the stale ones. | `.contextprint/blueprint.md` |
+| [contextprint](./contextprint/) | Audits a repo's context layer: AGENTS.md router, requirements, architecture and ADRs, specs, contracts, acceptance tests, CI. Produces a report, templates and a writer agent for the missing docs. It also checks generated convention skills for conflicts. | `.contextprint/report.*` and docs you approve |
+| [codeprint](./codeprint/) | Samples the code and writes a draft *coding conventions* skill with evidence counts. | `<skills dir>/patterns/`, `use-patterns/` |
+| [testprint](./testprint/) | Samples the tests and writes a draft *testing conventions* skill. It checks traceability to requirement IDs. | `<skills dir>/test-patterns/`, `use-test-patterns/` |
+| [infraprint](./infraprint/) | Samples the infrastructure and deploy code and writes a draft *infra conventions* skill. It never applies changes. | `<skills dir>/infra-patterns/`, `use-infra-patterns/` |
 
-### 2. Model-Aware Routing
+The skills dir is `.claude/skills/` on Claude Code, `.gemini/skills/` on Gemini CLI and `.agents/skills/` everywhere else.
 
-Not every task needs the most expensive model. Skills in this toolkit specify which model tier is appropriate for each phase:
+## How they fit together
 
-| Task type | Model tier | Why |
-|-----------|-----------|-----|
-| File listing, pattern matching, simple lookups | Haiku | Mechanical — no reasoning needed |
-| Code reading, classification, extraction | Sonnet | Needs understanding, not deep synthesis |
-| Synthesis, generation, complex reasoning | Opus | Quality-critical output |
-| Build verification, pass/fail checks | Haiku | Binary result, no reasoning |
+- **Requirements, architecture, ADRs, specs and contracts** hold the decisions and the exact values. contextprint covers them.
+- **Conventions** (the `*print` output) describe how the code is written today. They link to contracts and never copy their values.
+- **AGENTS.md** routes to both. A `*print` tool adds one line under `## Conventions` if AGENTS.md exists. It never creates the file.
 
-**In workflow mode**, model routing happens automatically via `agent()` opts. **In skill mode**, the skill informs the user which model tier is optimal for the current phase, so they can switch if cost-conscious.
+Every generated file follows [`_shared/generated-output.md`](./_shared/generated-output.md):
+- a provenance line (tool, version, commit, date, status: draft);
+- `(observed n/m)` or `(inferred)` labels on each rule;
+- plain sentences;
+- no restated contract values;
+- no token-saving claims.
 
-### 3. Graceful Budget Awareness
+> [!NOTE]
+> AI-written context files are not automatically helpful. Published work found they can raise cost and lower task success. Treat generated output as a draft, review it, and measure it on your own tasks. The benchmark in the research project does this.
 
-Skills are designed to complete even when token budget is tight:
-
-- **Budget detection** — in workflow mode, check `budget.remaining()` before spawning expensive phases
-- **Progressive degradation** — if budget runs low mid-task:
-  1. Downshift to cheaper model for remaining phases
-  2. Compress output (fewer examples, shorter templates)
-  3. Skip optional phases (tooling recommendations, scaffolding)
-  4. Always complete the critical output — never leave a half-written skill
-- **User transparency** — inform user when degrading: `"Budget low. Switching to Sonnet for remaining phases. Output will be compressed."`
-
-### 4. Inform, Don't Surprise
-
-Skills communicate actively:
-- Announce which model tier is being used for each phase
-- Report token estimates before expensive operations
-- Flag when switching models or compressing output
-- Show progress: `[phase 3/9] Extracting patterns (Sonnet)`
-
-## Available Tools
-
-| Tool | Description | Install |
-|------|-------------|---------|
-| [codeprint](./codeprint/) | Analyze any repo's patterns → generate token-efficient coding patterns skill | `./codeprint/scripts/manage-skills.sh install` |
-
-## Model Tier Reference
-
-For users who want to manually switch models during skill execution:
-
-| Tier | Model | Use for | Approx cost/1M tokens |
-|------|-------|---------|----------------------|
-| **Haiku** | `claude-haiku-4-5-20251001` | Scanning, listing, simple extraction | $0.25 in / $1.25 out |
-| **Sonnet** | `claude-sonnet-5` | Code understanding, pattern recognition | $3 in / $15 out |
-| **Opus** | `claude-opus-4-8` | Synthesis, generation, complex reasoning | $15 in / $75 out |
-
-**Rule of thumb:** If a phase could be done by a junior dev with a checklist → Haiku. If it needs a senior dev reading code → Sonnet. If it needs an architect synthesizing → Opus.
-
-## Structure (neatskills convention)
-
-Each tool follows the [neatskills](https://github.com/neatskills) format:
-
-```
-tool-name/
-├── SKILL.md                ← Main skill (frontmatter + quick reference + flow)
-├── SKILL-portable.md       ← Self-contained version (no external deps)
-├── .claude-plugin/
-│   └── marketplace.json    ← Distribution metadata
-├── references/             ← Detailed docs read by AI during execution
-├── scripts/                ← Install/utility scripts
-├── README.md               ← Human documentation
-└── GETTING_STARTED.md      ← Detailed usage guide
-```
-
-## Install Any Tool
+## Install
 
 ```bash
-# Symlink (auto-updates on pull)
-./tool-name/scripts/manage-skills.sh install
+./install.sh status                       # what is installed where
+./install.sh install                      # auto-detect hosts, link every tool
+./install.sh install --target claude      # one host: claude | antigravity | gemini | codex | all
+./install.sh install --tools codeprint    # selected tools only
+./install.sh install --force              # replace existing copies (backed up to ~/.print-toolkit-backups)
+./install.sh install --dry-run            # show what would happen
+./install.sh uninstall
+```
 
-# Or copy (standalone)
-cp tool-name/SKILL.md ~/.claude/skills/tool-name.md
+The installer creates symlinks, so a `git pull` updates every host. Restart the host app after you install.
+
+| Host | Location |
+|------|----------|
+| Claude Code | `~/.claude/skills/<skill>`, `~/.claude/agents/<agent>.md` |
+| Antigravity | `~/.gemini/config/plugins/<tool>` |
+| Gemini CLI | `~/.gemini/skills/<skill>` |
+| Codex | `~/.codex/skills/<skill>` |
+
+## Layout
+
+```
+_shared/generated-output.md     rules for every generated file (copied into each tool's references/)
+install.sh                      one installer for all tools and hosts
+<tool>/
+├── skills/<skill>/SKILL.md     portable skill (frontmatter: name, description only)
+│   └── references/             detail read per phase
+├── agents/                     optional subagents
+├── workflows/                  optional Claude Code workflow scripts
+├── plugin.json                 Antigravity manifest
+├── gemini-extension.json       Gemini CLI manifest
+├── .claude-plugin/             Claude Code manifests
+└── README.md
+```
+
+New tools are picked up automatically when they follow `*/skills/*/SKILL.md`.
+
+## Tests
+
+```bash
+python3 tests/run_tests.py               # toolkit consistency checks
+python3 contextprint/tests/run_tests.py  # contextprint audit tests
 ```
 
 ## License

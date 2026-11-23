@@ -1,0 +1,12 @@
+# contracts/rules.yaml — the single source of truth for precise values.
+# Other documents reference these keys; they never copy the values.
+# Every key cites the requirement it comes from. CI validates this file and a test
+# checks the code against it.
+
+version: 1
+rules:
+  <RULE_KEY>:                  # REQ-001
+    <CONSTANT_NAME>: <value>   # unit
+    errors: [<ERROR_CODE>]
+    examples:
+      - "<input> -> <expected>"

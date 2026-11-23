@@ -1,0 +1,6 @@
+{
+  "name": "infraprint",
+  "displayName": "infraprint",
+  "version": "2.0.0",
+  "description": "Analyzes a repository's infrastructure and generates draft infra-conventions skills (infra-patterns + use-infra-patterns) with canonical files, environment differences, pitfalls and evidence labels."
+}

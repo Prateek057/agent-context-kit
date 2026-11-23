@@ -1,0 +1,5 @@
+{
+  "name": "codeprint",
+  "version": "2.0.0",
+  "description": "Generate draft application-code conventions skills (patterns + use-patterns) for a repository."
+}

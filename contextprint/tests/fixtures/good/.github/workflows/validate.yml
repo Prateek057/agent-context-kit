@@ -1,0 +1,7 @@
+name: validate
+on: [push]
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    steps:
+      - run: make validate

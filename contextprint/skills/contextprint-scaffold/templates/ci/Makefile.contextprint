@@ -1,0 +1,16 @@
+# contextprint validate target. Merge into your Makefile (the scaffold never overwrites one).
+# Replace each command with the tool your stack uses; keep the single entry point.
+
+.PHONY: validate validate-contracts lint test-acceptance
+
+validate: validate-contracts lint test-acceptance
+
+validate-contracts:
+	@echo "TODO: validate contracts/*.yaml and *.openapi.yaml against their schemas"
+	@echo "TODO: run a test that reads contracts/rules.yaml and checks the code's constants"
+
+lint:
+	@echo "TODO: run your linter"
+
+test-acceptance:
+	@echo "TODO: run tests/acceptance"

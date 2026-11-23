@@ -1,0 +1,18 @@
+name: validate
+
+# Enforce the contracts: a schema nobody validates is just structured prose.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Add your language/runtime setup step here.
+      - name: Validate contracts, lint, acceptance tests
+        run: make validate
+      - name: contextprint artifact audit
+        run: python3 tools/contextprint/audit.py --fail-on missing

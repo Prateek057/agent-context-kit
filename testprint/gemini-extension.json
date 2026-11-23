@@ -1,0 +1,5 @@
+{
+  "name": "testprint",
+  "version": "2.0.0",
+  "description": "Analyzes a repository's tests and generates draft test-conventions skills (test-patterns + use-test-patterns) with canonical files, factories, pitfalls and evidence labels."
+}

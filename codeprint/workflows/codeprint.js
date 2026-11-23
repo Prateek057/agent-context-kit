@@ -1,192 +1,128 @@
+// codeprint workflow (optional accelerator for Claude Code's Workflow tool).
+// Same phases and output rules as skills/codeprint/SKILL.md; adds per-phase model tiers and budget checks.
 export const meta = {
   name: 'codeprint',
-  description: 'Analyze repository coding patterns (excludes tests and infra — use testprint/infraprint for those)',
+  version: '2.0.0',
+  description: 'Application-code conventions → draft patterns + use-patterns skills (tests: testprint, infra: infraprint)',
   phases: [
-    { title: 'Detect', detail: 'Topology, languages, code subtypes' },
-    { title: 'Extract', detail: 'Sample files, extract conventions' },
-    { title: 'Generate', detail: 'Produce patterns.md and use-patterns.md' },
+    { title: 'Detect', detail: 'Topology, languages, code subtypes, context docs, output location' },
+    { title: 'Extract', detail: 'Sample files, count conventions' },
+    { title: 'Generate', detail: 'Write patterns and use-patterns skills, add route line' },
   ],
 }
 
-// Phase 1: Detection (code subtypes only — no tests, no infra)
+const RULES = `Output rules (from codeprint's references/generated-output.md):
+- Frontmatter: only name + description. First line after it: <!-- generated-by: codeprint 2.0.0 | commit: <sha> | date: <YYYY-MM-DD> | sampled: <n> files | status: draft, review before relying on it -->
+- Every convention ends with (observed n/m) or (inferred). Anti-patterns only with counts, e.g. (observed A 8/8, B 0/8).
+- Conventions, not rules: never restate values (limits, timeouts, error codes, versions) that live in requirements, specs, contracts or ADRs; link the file. Values only in code: link the code file. Code-vs-spec contradictions go under "## Open questions".
+- Plain concise language: bullets and short skeletons are fine; keep the reason for non-obvious rules; no telegraphic fragments or compression.
+- About 200 lines max. Prefer one canonical file path over long explanations.`
+
+// Phase 1: detection (code only)
 phase('Detect')
-log('Starting codeprint. Detecting topology, languages, code subtypes.')
+log('[phase 1-3/6] Detecting topology, languages, code subtypes, context docs')
 
 const detection = await agent(
-  `Analyze this repository structure for CODE patterns only.
-
-Do the following:
-1. List root directory contents
-2. Detect topology: monorepo (multiple services/packages/apps with own build files), monolith (single entry point, layered dirs), or microservice (single service, shallow)
-3. Detect languages by finding build files (.csproj, package.json, go.mod, Cargo.toml, pom.xml, pyproject.toml, etc.)
-4. Detect frameworks from dependency manifests
-5. Identify CODE subtypes only: handlers, controllers, services, repositories, workers, validators, mappers, DTOs, domain models, middleware, consumers
-   EXCLUDE: test files, infrastructure (terraform, docker, CI/CD), config files
-
-Report structured findings. List file counts, not file contents.`,
+  `Analyze this repository for APPLICATION CODE conventions only.
+1. Topology: monorepo (several packages/services with own build files), monolith (one deployable, layered dirs) or single service.
+2. Languages (with major version) and frameworks, per module.
+3. Code subtypes: handlers, controllers, endpoints, services, repositories, domain models, workers/consumers, middleware, validators, mappers, DTOs, events/commands/queries, adapters, config/startup. EXCLUDE tests and infrastructure (IaC, Docker, CI/CD). Give file counts and 2-3 sample paths with real logic.
+4. Context docs present: AGENTS.md, CLAUDE.md, GEMINI.md, REQUIREMENTS.md, specs/, contracts/, *.rules.yaml, openapi.*, *.schema.json, decisions/, adr/.
+5. Output dir: ".claude/skills" if .claude/ exists or this is Claude Code (default here), ".gemini/skills" if only .gemini/ exists, else ".agents/skills".
+6. Commit: output of git rev-parse --short HEAD, or "none".
+Report structured findings. List counts and paths, not file contents.`,
   { label: 'detect:structure', phase: 'Detect', model: 'haiku', effort: 'low', schema: {
     type: 'object',
     properties: {
-      topology: { type: 'string', enum: ['monorepo', 'monolith', 'microservice'] },
+      topology: { type: 'string', enum: ['monorepo', 'monolith', 'single service'] },
       languages: { type: 'array', items: { type: 'object', properties: {
-        name: { type: 'string' },
-        version: { type: 'string' },
-        frameworks: { type: 'array', items: { type: 'string' } }
-      }, required: ['name'] } },
+        name: { type: 'string' }, version: { type: 'string' },
+        frameworks: { type: 'array', items: { type: 'string' } } }, required: ['name'] } },
       subtypes: { type: 'array', items: { type: 'object', properties: {
-        name: { type: 'string' },
-        location: { type: 'string' },
-        fileCount: { type: 'number' },
-        sampleFiles: { type: 'array', items: { type: 'string' } }
-      }, required: ['name', 'location', 'sampleFiles'] } },
-      monorepoStructure: { type: 'string' }
+        name: { type: 'string' }, location: { type: 'string' }, fileCount: { type: 'number' },
+        sampleFiles: { type: 'array', items: { type: 'string' } } }, required: ['name', 'location', 'sampleFiles'] } },
+      contextDocs: { type: 'array', items: { type: 'string' } },
+      outputDir: { type: 'string' },
+      commit: { type: 'string' },
+      monorepoStructure: { type: 'string' },
     },
-    required: ['topology', 'languages', 'subtypes']
+    required: ['topology', 'languages', 'subtypes', 'outputDir'],
   } }
 )
 
 if (!detection) {
-  log('Detection failed. Aborting.')
+  log('Detection failed. Aborting without writing files.')
   return { error: 'Detection phase failed' }
 }
 
-log(`Detected: ${detection.topology} | ${detection.languages.map(l => l.name).join(', ')} | ${detection.subtypes.length} subtypes`)
+const outDir = detection.outputDir || '.claude/skills'
+log(`Detected: ${detection.topology} | ${detection.languages.map(l => l.name).join(', ')} | ${detection.subtypes.length} subtypes | output: ${outDir}`)
 
-// Budget check before expensive phases
-if (budget.total && budget.remaining() < 30000) {
-  log(`Budget low (${Math.round(budget.remaining() / 1000)}k remaining). Generating compressed output.`)
-  const compressed = await agent(
-    `Generate a compressed .claude/skills/patterns.md based on this detection data. Keep under 150 lines. Detection: ${JSON.stringify(detection)}`,
-    { label: 'generate:compressed', phase: 'Generate', model: 'sonnet' }
-  )
-  return { patterns: compressed, mode: 'compressed', detection }
-}
-
-// Phase 4-5: Extraction (Sonnet — needs code understanding)
+// Phase 4: extraction with counts
 phase('Extract')
-log('Extracting patterns from representative files.')
-
-// Cap subtypes to 8 most important (highest file count = most representative)
-const topSubtypes = detection.subtypes
-  .sort((a, b) => (b.fileCount || 0) - (a.fileCount || 0))
-  .slice(0, 8)
-log(`Extracting top ${topSubtypes.length} subtypes (of ${detection.subtypes.length} detected)`)
-
-const extractionPrompts = topSubtypes.map(subtype => ({
-  subtype: subtype.name,
-  prompt: `Extract coding patterns for "${subtype.name}" subtype.
-Sample files: ${subtype.sampleFiles.slice(0, 2).join(', ')}
-
-IMPORTANT: Read only the FIRST 60 lines of each file. Do NOT read entire files.
-
-Extract (terse — each answer max 1 sentence):
-1. Naming convention (casing, suffix)
-2. Constructor pattern (DI style)
-3. Method signature pattern (async, return type)
-4. Error handling (1 sentence)
-5. Key rules (3 bullets max)
-
-Pick the single best canonical file path.
-Keep total response under 150 words.`
-}))
+const topSubtypes = [...detection.subtypes].sort((a, b) => (b.fileCount || 0) - (a.fileCount || 0)).slice(0, 8)
+log(`[phase 4/6] Extracting ${topSubtypes.length} subtypes (of ${detection.subtypes.length})`)
 
 const extractions = await pipeline(
-  extractionPrompts,
-  item => agent(item.prompt, {
-    label: `extract:${item.subtype}`,
-    phase: 'Extract',
-    model: 'sonnet',
-    effort: 'low',
-    schema: {
+  topSubtypes,
+  s => agent(
+    `Extract conventions for the "${s.name}" subtype (${s.fileCount || '?'} files under ${s.location}).
+Samples: ${s.sampleFiles.slice(0, 3).join(', ')}
+1. Read enough of each sample to see imports, constructor and one complete method (usually under 150 lines).
+2. List candidate conventions: naming, structure/DI, signatures and return types, error handling, validation, logging, wiring/registration.
+3. COUNT each candidate across all files of the subtype with grep/glob (not by reading more files). Record n/m.
+4. Keep conventions seen in most files. Pick one canonical file.
+5. Do not copy concrete values (limits, codes, timeouts); note the file that defines them. Note contradictions with specs/contracts as open questions.`,
+    { label: `extract:${s.name}`, phase: 'Extract', model: 'sonnet', effort: 'low', schema: {
       type: 'object',
       properties: {
-        subtype: { type: 'string' },
-        location: { type: 'string' },
-        naming: { type: 'string' },
-        template: { type: 'string' },
-        canonicalFile: { type: 'string' },
-        rules: { type: 'array', items: { type: 'string' } },
-        errorHandling: { type: 'string' },
-        validation: { type: 'string' },
-        logging: { type: 'string' }
+        subtype: { type: 'string' }, location: { type: 'string' }, naming: { type: 'string' },
+        skeleton: { type: 'string' }, canonicalFile: { type: 'string' },
+        conventions: { type: 'array', items: { type: 'object', properties: {
+          text: { type: 'string' }, observed: { type: 'number' }, total: { type: 'number' }, inferred: { type: 'boolean' } },
+          required: ['text'] } },
+        wiring: { type: 'string' },
+        openQuestions: { type: 'array', items: { type: 'string' } },
       },
-      required: ['subtype', 'location', 'naming', 'canonicalFile', 'rules']
-    }
-  })
+      required: ['subtype', 'location', 'naming', 'canonicalFile', 'conventions'],
+    } }
+  )
 )
+const valid = extractions.filter(Boolean)
+log(`Extracted ${valid.length}/${topSubtypes.length} subtypes`)
 
-const validExtractions = extractions.filter(Boolean)
-log(`Extracted patterns for ${validExtractions.length}/${detection.subtypes.length} subtypes`)
-
-// Cross-cutting inferred from extraction data during generation — no separate agent
-
-// Anti-patterns inferred during generation from extraction consistency — no separate agent
-
-// Budget check before generation
-if (budget.total && budget.remaining() < 20000) {
-  log(`Budget moderate (${Math.round(budget.remaining() / 1000)}k). Skipping use-patterns.md and tooling recs.`)
-}
-
-// Phase 7-8: Generate (Opus — synthesis)
+// Phase 5-6: generation
 phase('Generate')
-log('Generating patterns.md')
+const data = JSON.stringify({ detection, extractions: valid })
+const lowBudget = budget.total && budget.remaining() < 20000
+if (lowBudget) log(`Budget low (${Math.round(budget.remaining() / 1000)}k). Writing the patterns skill only; run codeprint again for use-patterns.`)
 
-const generateInput = JSON.stringify({
-  detection,
-  extractions: validExtractions
-})
-
+log('[phase 5/6] Writing patterns skill')
 const patternsSkill = await agent(
-  `Generate and WRITE a .claude/skills/patterns.md file in the current repository.
-
-Use this data: ${generateInput}
-
-Follow these rules strictly:
-- YAML frontmatter: name: patterns, description, trigger: /patterns
-- Max 300 lines
-- No prose — bullets and code snippets only
-- Minimal code templates (constructor + one method signature)
-- Prefer canonical file paths over re-explaining
-- Anti-patterns section: max 7 items
-- Include: Overview, Subtypes (with templates), Conventions, Anti-Patterns, Scaffold Reference, Preferred Dependencies
-- NO infrastructure/test sections (those are handled by infraprint/testprint)
-- Infer cross-cutting conventions (DI, config, logging) from extraction data — brief "Conventions" section
-- Infer anti-patterns from consistency (if pattern A always used over common alternative B → "Don't use B"). Max 7 items.
-
-IMPORTANT: Use the Write tool to save the file at .claude/skills/patterns/SKILL.md (create dirs if needed). Do NOT just return the content.`,
+  `Write ${outDir}/patterns/SKILL.md (create dirs) for this repository from this data: ${data}
+Sections: Overview (topology, languages, grouping, where rules/values live: link context docs), one section per subtype (location, naming, skeleton, "Copy from", labelled conventions, wiring), Shared conventions, Avoid (max 7, counted only), "New file? Copy from" table, Open questions.
+No test or infrastructure sections.
+${RULES}
+Use the Write tool to save the file. Do not just return the content.`,
   { label: 'generate:patterns', phase: 'Generate', model: 'opus', effort: 'medium' }
 )
 
 let usePatternsSkill = null
-if (!budget.total || budget.remaining() > 15000) {
+if (!lowBudget) {
+  log('[phase 6/6] Writing use-patterns skill and route line')
   usePatternsSkill = await agent(
-    `Generate and WRITE a .claude/skills/use-patterns.md file in the current repository.
-
-This is a task executor skill that applies the repo's coding patterns with:
-- Terse communication (fragments OK, no filler)
-- 4 checkpoints: Plan → Implement → Wire → Verify
-- Human gates before irreversible decisions
-- Token optimization rules (don't re-read, don't repeat back, use Edit not Write)
-- Complexity tier hints per checkpoint (Low/Medium/High — user picks model)
-
-Adapt to this repo specifically:
-- Topology: ${detection.topology}
-- Languages: ${detection.languages.map(l => l.name).join(', ')}
-- Wiring mechanism: infer from extraction data
-- Build command: infer from language (dotnet build / npm run build / go build / etc.)
-- Shared libs path: infer from detection data
-- Note: infra patterns handled separately by /infraprint
-
-IMPORTANT: Use the Write tool to save the file at .claude/skills/use-patterns/SKILL.md (create dirs if needed). Do NOT just return the content.`,
+    `1. Write ${outDir}/use-patterns/SKILL.md (create dirs): a task executor for this repo.
+   - Frontmatter name: use-patterns; description: carries out a coding task following the patterns skill.
+   - First instruction: if AGENTS.md / CLAUDE.md / GEMINI.md defines a workflow or validate command, follow it; the checkpoints apply only where it is silent.
+   - Load only the patterns sections for the subtypes the task touches, plus the "copy from" files; read rules/values from the linked contract or spec, never from memory.
+   - Checkpoints: Plan, Implement, Wire (${detection.topology}; registration step inferred from: ${JSON.stringify(valid.map(v => v.wiring).filter(Boolean))}), Verify (real build/test command; "unknown, ask the user" if not found).
+   - Ask before: choosing between valid patterns, changing shared libraries or infra, deleting/renaming code, business rules the task does not state.
+   ${RULES}
+2. If AGENTS.md exists at the repo root, add one line per generated skill under "## Conventions" (create the section at the end if missing), e.g. "- Writing application code: follow the patterns skill (${outDir}/patterns/SKILL.md)". Change nothing else. If AGENTS.md does not exist, do not create it.
+Use the Write/Edit tools.`,
     { label: 'generate:use-patterns', phase: 'Generate', model: 'sonnet', effort: 'medium' }
   )
 }
 
-log('Codeprint complete. Run /testprint for test patterns, /infraprint for infra patterns.')
-
-return {
-  detection,
-  extractions: validExtractions,
-  patternsSkill,
-  usePatternsSkill
-}
+log(`Done. Draft skills in ${outDir}/ (review before relying on them). Tests: testprint. Infra: infraprint. Missing requirements/specs/contracts/AGENTS.md: contextprint.`)
+return { detection, extractions: valid, patternsSkill, usePatternsSkill, outDir }

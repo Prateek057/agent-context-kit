@@ -1,0 +1,7 @@
+version: 1
+rules:
+  login_lockout:          # REQ-012
+    MAX_FAILED_ATTEMPTS: 5
+    LOCK_DURATION_S: 900
+  token:                  # REQ-013
+    TOKEN_LIFETIME_S: 600

@@ -1,0 +1,5 @@
+{
+  "name": "blueprint",
+  "version": "1.0.0",
+  "description": "Orchestrate contextprint, codeprint, testprint and infraprint: plan, run, reconcile, refresh."
+}

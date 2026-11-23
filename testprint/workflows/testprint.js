@@ -1,5 +1,8 @@
+// testprint workflow (optional accelerator for Claude Code's Workflow tool).
+// Same phases and output rules as skills/testprint/SKILL.md.
 export const meta = {
   name: 'testprint',
+  version: '2.0.0',
   description: 'Analyze repository test patterns and generate test-patterns skill',
   phases: [
     { title: 'Detect', detail: 'Test frameworks, types, utilities' },
@@ -8,6 +11,17 @@ export const meta = {
     { title: 'Generate', detail: 'Produce test-patterns.md and use-test-patterns.md' },
   ],
 }
+
+const RULES = `Output rules (from references/generated-output.md):
+- Frontmatter: only name + description. First line after it: <!-- generated-by: testprint 2.0.0 | commit: <sha> | date: <YYYY-MM-DD> | sampled: <n> files | status: draft, review before relying on it -->
+- Every convention, pitfall and anti-pattern ends with (observed n/m) or (inferred). Anti-patterns only with counts.
+- Conventions, not rules: never restate values (limits, timeouts, versions, thresholds, error codes) that live in requirements, specs, contracts or ADRs; link the file. Values only in code/config: link that file. Contradictions go under "## Open questions".
+- Plain concise language: bullets and short skeletons are fine; keep the reason for non-obvious rules; no telegraphic fragments or compression.
+- If AGENTS.md / CLAUDE.md / GEMINI.md defines a workflow or validate command, the executor skill follows it; its checkpoints apply only where that file is silent.`
+
+const OUT_DETECT = `Also report: outputDir = ".claude/skills" if .claude/ exists or this is Claude Code (default here), ".gemini/skills" if only .gemini/ exists, else ".agents/skills"; commit = git rev-parse --short HEAD or "none"; contextDocs = which of AGENTS.md, REQUIREMENTS.md, specs/, contracts/, *.rules.yaml, decisions/ exist.`
+
+const ROUTE = (outDir, names) => `If AGENTS.md exists at the repo root, add one line per generated skill under "## Conventions" (create the section at the end if missing), e.g. "- ${names}: see ${outDir}/<skill>/SKILL.md". Change nothing else. If AGENTS.md does not exist, do not create it.`
 
 // Phase 1: Detect test structure
 phase('Detect')
@@ -25,12 +39,16 @@ Do the following:
 6. Detect integration test infra (Testcontainers, WebApplicationFactory, docker-compose)
 7. Classify test types present: unit, integration, e2e, contract
 8. Find shared test utilities (base classes, builders, custom assertions)
+9. Requirement traceability: if REQUIREMENTS.md (or numbered requirement IDs like REQ-001) exists, count how many test files cite an ID in a name, tag or docstring (n/m)
 
 ONLY look at test-related files. Ignore application code.
-Report file counts per test type, not file contents.`,
+Report file counts per test type, not file contents.
+${OUT_DETECT}`,
   { label: 'detect:tests', phase: 'Detect', model: 'haiku', effort: 'low', schema: {
     type: 'object',
     properties: {
+      outputDir: { type: 'string' }, commit: { type: 'string' },
+      contextDocs: { type: 'array', items: { type: 'string' } },
       framework: { type: 'string' },
       assertionLib: { type: 'string' },
       mockingLib: { type: 'string' },
@@ -42,6 +60,7 @@ Report file counts per test type, not file contents.`,
         fileCount: { type: 'number' },
         sampleFiles: { type: 'array', items: { type: 'string' } }
       }, required: ['type', 'location', 'sampleFiles'] } },
+      reqTraceability: { type: 'string' },
       sharedUtilities: { type: 'array', items: { type: 'object', properties: {
         name: { type: 'string' },
         path: { type: 'string' },
@@ -57,17 +76,11 @@ if (!detection) {
   return { error: 'Test detection failed' }
 }
 
+const outDir = detection.outputDir || '.claude/skills'
 log(`Detected: ${detection.framework} | ${detection.testTypes.length} test types | mock: ${detection.mockingLib || 'none'}`)
 
-// Budget check
-if (budget.total && budget.remaining() < 30000) {
-  log(`Budget low (${Math.round(budget.remaining() / 1000)}k). Generating compressed output.`)
-  const compressed = await agent(
-    `Generate compressed .claude/skills/test-patterns.md. Keep under 100 lines. Data: ${JSON.stringify(detection)}`,
-    { label: 'generate:compressed', phase: 'Generate', model: 'sonnet' }
-  )
-  return { testPatterns: compressed, mode: 'compressed', detection }
-}
+const lowBudget = budget.total && budget.remaining() < 20000
+if (lowBudget) log(`Budget low (${Math.round(budget.remaining() / 1000)}k). The executor skill will be skipped; run again for it.`)
 
 // Phase 2: Extract per test type with subtype splitting (max 4 types)
 phase('Extract')
@@ -80,13 +93,15 @@ const extractionPrompts = topTypes.map(tt => ({
   prompt: `Extract test patterns for "${tt.type}" tests.
 Sample files: ${tt.sampleFiles.slice(0, 3).join(', ')}
 
-IMPORTANT: Read only FIRST 60 lines of each file.
+Read enough of each sample to see its structure and one complete unit (usually under 150 lines).
+COUNT each candidate convention across all files of this type with grep/glob (not by reading more files) and report n/m.
+Do not copy concrete values (versions, thresholds, limits); note the file that defines them.
 
 SUBTYPE DETECTION: Check if these test files use DIFFERENT assertion/setup styles.
 For example, service tests might use mocks + standard assertions while validator tests use a specialized validation testing library.
 If you find 2+ distinct styles, split into subtypes (e.g., "unit:service", "unit:validator", "unit:component").
 
-Per subtype found, extract (terse — max 1 sentence each):
+Per subtype found, extract (one short sentence each, with n/m counts):
 1. Subtype name (e.g., "unit:handler", "unit:validator", "integration:api")
 2. File naming convention
 3. Test method naming pattern
@@ -211,12 +226,12 @@ log('Generating test-patterns.md')
 const generateInput = JSON.stringify({ detection, subtypes: allSubtypes, pitfalls })
 
 const testPatternsSkill = await agent(
-  `Generate and WRITE a .claude/skills/test-patterns/SKILL.md file in the current repository.
+  `Generate and WRITE a ${outDir}/test-patterns/SKILL.md file in the current repository.
 
 Use this data: ${generateInput}
 
 STRUCTURE (follow exactly):
-1. YAML frontmatter: name: test-patterns, description, trigger: /test-patterns
+1. YAML frontmatter: name: test-patterns, description (what it covers, when to use it)
 2. Overview — frameworks, test types
 3. Per-SUBTYPE Patterns — one section per detected subtype (NOT just per test type). Each section:
    - Subtype name (e.g., "unit:handler", "unit:validator", "integration:api")
@@ -230,27 +245,29 @@ STRUCTURE (follow exactly):
    - Required/init fields that must be set
    - Null behavior differences in validators
    - Specialized assertion patterns distinct from main style
-6. Anti-Patterns (max 5) — inferred from consistency
-7. Test Scaffold Lookup Table:
+6. Anti-Patterns (max 5) — only with counts
+7. Requirement traceability (only if the repo has requirement IDs): how tests cite them, with counts; link REQUIREMENTS.md, do not copy requirements
+8. Test Scaffold Lookup Table:
    | Writing a... | Copy from |
    |---|---|
    | {subtype} | {canonical_file_path} |
 
 Rules:
 - Max 250 lines
-- No prose — bullets and code snippets only
 - Pitfalls section is MANDATORY if pitfall data exists
 
-IMPORTANT: Use the Write tool to save the file at .claude/skills/test-patterns/SKILL.md (create dirs if needed). Do NOT just return the content.`,
+${RULES}
+${ROUTE(outDir, 'Writing tests')}
+IMPORTANT: Use the Write tool to save the file at ${outDir}/test-patterns/SKILL.md (create dirs if needed). Do NOT just return the content.`,
   { label: 'generate:test-patterns', phase: 'Generate', model: 'opus', effort: 'medium' }
 )
 
 let useTestPatternsSkill = null
-if (!budget.total || budget.remaining() > 15000) {
+if (!lowBudget) {
   const subtypeLookup = allSubtypes.map(s => `| ${s.subtype} | \`${s.canonicalFile}\` |`).join('\n')
 
   useTestPatternsSkill = await agent(
-    `Generate and WRITE a .claude/skills/use-test-patterns/SKILL.md file for this repository.
+    `Generate and WRITE a ${outDir}/use-test-patterns/SKILL.md file for this repository.
 
 Task executor for writing tests following repo conventions.
 
@@ -287,14 +304,17 @@ Adapt to this repo:
 - Test runner command: infer from framework
 - Shared utilities: ${detection.sharedUtilities?.map(u => u.path).join(', ') || 'none'}
 
-IMPORTANT: Use the Write tool to save the file at .claude/skills/use-test-patterns/SKILL.md (create dirs if needed). Do NOT just return the content.`,
+${RULES}
+${ROUTE(outDir, 'Writing tests')}
+IMPORTANT: Use the Write tool to save the file at ${outDir}/use-test-patterns/SKILL.md (create dirs if needed). Do NOT just return the content.`,
     { label: 'generate:use-test-patterns', phase: 'Generate', model: 'sonnet', effort: 'medium' }
   )
 }
 
-log('Testprint complete. Run /codeprint for code patterns, /infraprint for infra patterns.')
+log(`Done. Draft skills in ${outDir}/ (review before relying on them). Code: codeprint. Tests: testprint. Infra: infraprint. Missing requirements/specs/contracts/AGENTS.md: contextprint.`)
 
 return {
+  outDir,
   detection,
   extractions: validExtractions,
   testPatternsSkill,

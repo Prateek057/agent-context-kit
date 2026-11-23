@@ -1,0 +1,11 @@
+{
+  "name": "contextprint",
+  "displayName": "contextprint",
+  "version": "1.1.0",
+  "description": "Audits a repository against the contextprint approach (numbered requirements, minimal-hybrid specs, DSL contracts, acceptance tests, AGENTS.md router, CI enforcement), scaffolds missing artifacts as templates, and a writer agent drafts the missing documents from real sources.",
+  "suggestedPrompts": [
+    "Audit this repo for context-layer readiness and list the missing artifacts",
+    "Scaffold templates for the missing context-layer artifacts (dry run first)",
+    "Use the contextprint-writer agent to write the missing documents from the audit report"
+  ]
+}

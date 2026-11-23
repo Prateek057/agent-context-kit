@@ -1,0 +1,2 @@
+- This is an e-commerce user service. Write clean code and follow best practices.
+- Make sure security is good. Use JWT for auth. Don't forget tests.

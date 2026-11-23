@@ -1,0 +1,10 @@
+{
+  "name": "codeprint",
+  "displayName": "codeprint",
+  "version": "2.0.0",
+  "description": "Analyzes a repository's application code and generates draft conventions skills (patterns + use-patterns) with evidence labels and links to contracts instead of copied values.",
+  "suggestedPrompts": [
+    "Run codeprint on this repo",
+    "Refresh the patterns skill; the code conventions changed"
+  ]
+}
